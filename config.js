@@ -6,6 +6,6 @@
    TUYỆT ĐỐI KHÔNG dán "Secret key" (sb_secret_) hay khóa service_role vào đây:
    file này ai cũng đọc được, lộ secret key là lộ toàn bộ dữ liệu. */
 window.PAMOS_CONFIG = {
-  supabaseUrl: "",   // ví dụ: "https://abcdefgh.supabase.co"
-  supabaseKey: ""    // ví dụ: "sb_publishable_..."
+  supabaseUrl: "",   // ví dụ: "https://gyjmxgxbjupkigcfseqh.supabase.co"
+  supabaseKey: ""    // ví dụ: "sb_publishable_VJihOCFHGiZ_nRNT1tR02Q_peHuOkt0"
 };
