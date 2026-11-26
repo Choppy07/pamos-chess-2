@@ -177,6 +177,16 @@
     if (error) throw error;
     return (data || []).map(r => Object.assign(fromRow(r), { updatedAt: r.updated_at, mine: !!C.user && r.user_id === C.user.id }));
   };
+  /* Bảng xếp hạng: máy chủ chỉ trả tên, avatar và số câu (hàm class_ranking). */
+  C.ranking = async () => {
+    const ids = (window.PAMOS_LESSONS || []).reduce((all, l) => all.concat(l.ids), []);
+    const { data, error } = await sb.rpc("class_ranking", { p_course: COURSE, p_ids: ids });
+    if (error) {
+      if (error.code === "PGRST202" || /could not find the function/i.test(error.message)) throw new Error("Bảng xếp hạng chưa được bật. Giáo viên cần chạy đoạn SQL mới trên Supabase.");
+      throw error;
+    }
+    return (data || []).map(r => ({ name: String(r.name || "").slice(0, 24), animal: String(r.animal), color: String(r.color), first: Number(r.first_correct) || 0, now: Number(r.now_correct) || 0, done: Number(r.done) || 0, mine: !!r.is_me }));
+  };
   C.flush = () => (C.user && isDirty(idOf(C.user.id)) ? push() : Promise.resolve(true));
   C.paintSync = () => setSync(C.sync);
 

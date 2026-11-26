@@ -6,7 +6,7 @@
   const app = document.getElementById("app"), tabbar = document.getElementById("tabbar");
   const BASE_TABS = [["hoc", "📚", "Học"], ["on", "🔁", "Ôn lại"], ["diem", "📊", "Đánh giá"], ["vuong-quoc", "🏰", "Vương quốc"]];
   const cloud = PA.cloud && PA.cloud.enabled ? PA.cloud : null;
-  const tabs = () => (cloud && cloud.isTeacher ? BASE_TABS.concat([["lop", "👩‍🏫", "Lớp"]]) : BASE_TABS);
+  const tabs = () => (cloud ? BASE_TABS.concat([["lop", "🏆", "Lớp"]]) : BASE_TABS);
 
   function modal(title, build) {
     const back = el("div", "modal-back"), box = el("div", "modal");
@@ -34,6 +34,7 @@
       draw(); form.appendChild(preview);
       const name = el("input", "field"); name.type = "text"; name.maxLength = 24; name.placeholder = "Ví dụ: Minh Anh"; name.required = true; name.value = existing ? existing.name : "";
       const nl = el("label", "lbl", "Tên của bạn"); nl.appendChild(name); form.appendChild(nl);
+      if (cloud) form.appendChild(el("p", "src", "Tên và avatar này hiện trên bảng xếp hạng của lớp. Bạn có thể dùng biệt danh."));
       const group = (title, values, key, render, cls) => {
         form.appendChild(el("span", "lbl", title));
         const g = el("div", cls); g.setAttribute("role", "group"); g.setAttribute("aria-label", title);
@@ -135,7 +136,7 @@
     const form = el("form", "panel login");
     const mail = field("Email", "email", "username"), pass = field("Mật khẩu (ít nhất 8 ký tự)", "password", "new-password"), again = field("Nhập lại mật khẩu", "password", "new-password");
     const agree = el("input"); agree.type = "checkbox"; agree.required = true;
-    const consent = el("label", "check"); consent.append(agree, el("span", null, "Mình đồng ý để web lưu email và tiến độ học; giáo viên thấy tên, avatar, kết quả của mình. Nếu mình còn nhỏ, bố mẹ đã đồng ý."));
+    const consent = el("label", "check"); consent.append(agree, el("span", null, "Mình đồng ý để web lưu email và tiến độ học. Tên hiển thị, avatar và số câu đúng của mình hiện trên bảng xếp hạng cho mọi người có tài khoản; giáo viên xem được kết quả chi tiết. Nếu mình còn nhỏ, bố mẹ đã đồng ý."));
     const msg = el("p", "fb"); msg.hidden = true; msg.setAttribute("role", "alert");
     const ok = el("button", "pill primary big", "Đăng ký 🐣"); ok.type = "submit";
     form.append(mail.wrap, pass.wrap, again.wrap, el("p", "src", "Hãy đặt mật khẩu riêng, đừng dùng lại mật khẩu email hay ngân hàng. Web chưa có nút lấy lại mật khẩu nên nhớ ghi lại nhé."), consent, msg, ok, switchLink("Đã có tài khoản? Đăng nhập", false));
@@ -242,9 +243,50 @@
       box.appendChild(el("p", "src", "Đang cần ôn lại " + summary(s).wrong + " câu."));
     });
   }
-  function viewClass() {
+  /* ---------- Bảng xếp hạng: ai đăng nhập cũng xem được ---------- */
+  function rankingPanel() {
     const box = el("section", "stack");
-    const head = el("div", "ex-top"); head.appendChild(el("h2", null, "👩‍🏫 Lớp học"));
+    const head = el("div", "ex-top"); head.appendChild(el("h2", null, "🏆 Bảng xếp hạng lớp"));
+    const reload = el("button", "pill small", "↻ Làm mới"); reload.type = "button"; head.appendChild(reload);
+    const body = el("div", "stack");
+    box.append(head, el("p", "src", "Xếp theo số câu đúng ngay lần đầu, cộng qua tất cả các buổi, nên làm lại không tăng được số này. Bằng nhau thì xét số câu hiện đang đúng. Không xếp hạng giáo viên."), body);
+    const load = async () => {
+      reload.disabled = true; body.innerHTML = "<p>Đang tải bảng xếp hạng…</p>";
+      try {
+        await cloud.flush();
+        const list = await cloud.ranking();
+        body.innerHTML = "";
+        if (!list.length) { body.appendChild(el("p", null, "Chưa có học viên nào trên bảng xếp hạng.")); return; }
+        const total = LESSONS.reduce((n, l) => n + l.ids.length, 0);
+        const ol = el("ol", "rank");
+        let place = 0;
+        list.forEach((r, i) => {
+          const prev = list[i - 1];
+          if (!prev || prev.first !== r.first || prev.now !== r.now) place = i + 1;
+          const li = el("li", "rank-row" + (r.mine ? " mine" : ""));
+          li.appendChild(el("span", "rank-no", r.done ? (["🥇", "🥈", "🥉"][place - 1] || String(place)) : "–"));
+          li.appendChild(el("span", "ava", PA.avatarOf(r)));
+          li.appendChild(el("span", "rank-name", "<b>" + esc(r.name) + (r.mine ? " (bạn)" : "") + "</b><small>" + (r.done ? "Đang đúng " + r.now + " · đã làm " + r.done + "/" + total : "Chưa làm bài") + "</small>"));
+          li.appendChild(el("span", "rank-score", "<b>" + r.first + "</b><small>đúng lần đầu</small>"));
+          ol.appendChild(li);
+        });
+        body.appendChild(ol);
+      } catch (err) {
+        body.innerHTML = ""; const p = el("p", "fb"); p.textContent = "Không tải được bảng xếp hạng: " + ((err && err.message) || err); body.appendChild(p);
+      } finally { reload.disabled = false; }
+    };
+    reload.addEventListener("click", load); load();
+    return box;
+  }
+  function viewClass() {
+    const page = el("section", "stack");
+    page.appendChild(rankingPanel());
+    if (cloud.isTeacher) page.appendChild(teacherPanel());
+    return page;
+  }
+  function teacherPanel() {
+    const box = el("section", "stack");
+    const head = el("div", "ex-top"); head.appendChild(el("h2", null, "👩‍🏫 Quản lý lớp (chỉ giáo viên thấy)"));
     const reload = el("button", "pill small", "↻ Làm mới"); reload.type = "button"; head.appendChild(reload);
     const body = el("div", "stack");
     box.append(head, body);
