@@ -128,6 +128,28 @@
       return "";
     } catch (err) { return friendly(String((err && err.message) || err)); }
   };
+  const friendlySignUp = msg => /already (been )?registered/i.test(msg) ? "Email này đã đăng ký rồi. Hãy bấm “Đăng nhập”."
+    : /signups? (are |is )?(not allowed|disabled)/i.test(msg) ? "Lớp đang đóng đăng ký. Hãy hỏi giáo viên."
+    : /not authorized|error sending/i.test(msg) ? "Máy chủ không gửi được email xác nhận. Hãy báo giáo viên."
+    : /rate limit|too many|only request this after/i.test(msg) ? "Có quá nhiều lượt đăng ký trong thời gian ngắn. Đợi một lúc rồi thử lại."
+    : /email.*invalid|invalid.*email|validate email/i.test(msg) ? "Email chưa hợp lệ. Hãy kiểm tra lại."
+    : /password/i.test(msg) ? "Máy chủ chưa nhận mật khẩu này. Hãy đặt mật khẩu dài và khó đoán hơn."
+    : /fetch|network/i.test(msg) ? "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại."
+    : "Không đăng ký được: " + msg;
+
+  /* Trả về { error } hoặc { notice }; trả về {} khi đã tạo tài khoản và đăng nhập luôn. */
+  C.signUp = async (email, password) => {
+    if (!sb) return { error: "Chưa kết nối được máy chủ đăng ký." };
+    try {
+      const { data, error } = await sb.auth.signUp({ email: email.trim(), password });
+      if (error) return { error: friendlySignUp(error.message) };
+      /* Không có phiên đăng nhập nghĩa là máy chủ đang bật "Confirm email". */
+      if (!data || !data.session) return { notice: "Chưa vào được ngay vì máy chủ đang yêu cầu xác nhận email. Nếu không nhận được thư, hãy báo giáo viên. Nếu email này đã đăng ký rồi, hãy bấm “Đăng nhập”." };
+      await enter(data.session.user);
+      return {};
+    } catch (err) { return { error: friendlySignUp(String((err && err.message) || err)) }; }
+  };
+
   /* Trả về false nếu còn bài chưa đẩy lên được và chưa ép đăng xuất. */
   C.signOut = async force => {
     const id = C.user ? idOf(C.user.id) : null;

@@ -124,13 +124,43 @@
     input.type = type; input.autocomplete = autocomplete; input.required = true; wrap.appendChild(input);
     return { wrap, input };
   }
+  let signingUp = false;
+  function switchLink(text, toSignUp) {
+    const b = el("button", "pill", text); b.type = "button";
+    b.addEventListener("click", () => { signingUp = toSignUp; viewLogin(); });
+    return b;
+  }
+  function viewSignUp() {
+    hello("Tạo tài khoản mới để lưu bài và tham gia lớp.");
+    const form = el("form", "panel login");
+    const mail = field("Email", "email", "username"), pass = field("Mật khẩu (ít nhất 8 ký tự)", "password", "new-password"), again = field("Nhập lại mật khẩu", "password", "new-password");
+    const agree = el("input"); agree.type = "checkbox"; agree.required = true;
+    const consent = el("label", "check"); consent.append(agree, el("span", null, "Mình đồng ý để web lưu email và tiến độ học; giáo viên thấy tên, avatar, kết quả của mình. Nếu mình còn nhỏ, bố mẹ đã đồng ý."));
+    const msg = el("p", "fb"); msg.hidden = true; msg.setAttribute("role", "alert");
+    const ok = el("button", "pill primary big", "Đăng ký 🐣"); ok.type = "submit";
+    form.append(mail.wrap, pass.wrap, again.wrap, el("p", "src", "Hãy đặt mật khẩu riêng, đừng dùng lại mật khẩu email hay ngân hàng. Web chưa có nút lấy lại mật khẩu nên nhớ ghi lại nhé."), consent, msg, ok, switchLink("Đã có tài khoản? Đăng nhập", false));
+    form.addEventListener("submit", async e => {
+      e.preventDefault(); msg.hidden = true;
+      let text = pass.input.value.length < 8 ? "Mật khẩu cần ít nhất 8 ký tự." : pass.input.value !== again.input.value ? "Hai lần nhập mật khẩu chưa giống nhau." : "";
+      if (!text) {
+        ok.disabled = true;
+        const res = await cloud.signUp(mail.input.value, pass.input.value);
+        ok.disabled = false;
+        text = res.error || res.notice || "";
+        if (!text) { signingUp = false; return; }
+      }
+      msg.textContent = text; msg.hidden = false;
+    });
+    app.appendChild(form);
+  }
   function viewLogin() {
+    if (signingUp) { viewSignUp(); return; }
     hello("Đăng nhập để học tiếp trên bất kỳ máy nào.");
     const form = el("form", "panel login");
     const mail = field("Email", "email", "username"), pass = field("Mật khẩu", "password", "current-password");
     const err = el("p", "fb"); err.hidden = true; err.setAttribute("role", "alert");
     const ok = el("button", "pill primary big", "Đăng nhập 🚀"); ok.type = "submit";
-    form.append(mail.wrap, pass.wrap, err, ok, el("p", "src", "Chưa có tài khoản hoặc quên mật khẩu? Hãy hỏi giáo viên của bạn."));
+    form.append(mail.wrap, pass.wrap, err, ok, switchLink("Chưa có tài khoản? Đăng ký", true), el("p", "src", "Quên mật khẩu? Hãy hỏi giáo viên của bạn."));
     form.addEventListener("submit", async e => {
       e.preventDefault(); ok.disabled = true; err.hidden = true;
       const msg = await cloud.signIn(mail.input.value, pass.input.value);

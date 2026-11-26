@@ -288,3 +288,5 @@ body.has-tabs #mascot { bottom: 84px; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.45; text-align: left; cursor: pointer; }
+.check input { width: 20px; height: 20px; flex: none; margin: 2px 0 0; }
